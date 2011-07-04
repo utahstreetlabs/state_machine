@@ -728,6 +728,39 @@ module ActiveModelTest
       assert record.valid?
     end
   end
+
+  class MachineWithCustomStateDrivenValidationsTest < BaseTestCase
+    def setup
+      @model = new_model do
+        include ActiveModel::Validations
+        attr_accessor :seatbelt
+      end
+      
+      @machine = StateMachine::Machine.new(@model)
+      @machine.state :first_gear, :second_gear do
+        validate :seatbelt_made_of_velvet
+        def seatbelt_made_of_velvet
+          errors.add(:seatbelt, 'must be made of velvet') unless seatbelt == :velvet
+        end
+      end
+      @machine.other_states :parked
+    end
+    
+    def test_should_be_valid_if_validation_fails_outside_state_scope
+      record = @model.new(:state => 'parked', :seatbelt => nil)
+      assert record.valid?
+    end
+    
+    def test_should_be_invalid_if_validation_fails_within_state_scope
+      record = @model.new(:state => 'first_gear', :seatbelt => nil)
+      assert !record.valid?
+    end
+    
+    def test_should_be_valid_if_validation_succeeds_within_state_scope
+      record = @model.new(:state => 'second_gear', :seatbelt => :velvet)
+      assert record.valid?
+    end
+  end
   
   class MachineWithObserversTest < BaseTestCase
     def setup
